@@ -1,14 +1,11 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptrace"
-	url2 "net/url"
 	"os"
-	"runtime"
 	"sync/atomic"
 	"time"
 )
@@ -22,6 +19,7 @@ var (
 	reusedConnections atomic.Uint64
 	traces            []ReqTraceInfo
 	reqProgress       int
+	results           = make(map[string]string)
 )
 
 type ReqTraceInfo struct {
@@ -30,35 +28,18 @@ type ReqTraceInfo struct {
 	total           time.Duration
 }
 
-func init() {
-	const (
-		defaultNumberOfTotalRequests = 5
-		defaultConcurrentRequests    = 1
-	)
-	flag.StringVar(&Endpoint, "url", "", "Endpoint URL for load testing")
-	flag.IntVar(&TotalReq, "n", defaultNumberOfTotalRequests, "Total number of requests to make")
-	flag.IntVar(&concurrent, "c", defaultConcurrentRequests, "Number of concurrent requests")
-	traces = make([]ReqTraceInfo, TotalReq)
-	client = &http.Client{Transport: &http.Transport{MaxConnsPerHost: concurrent, MaxIdleConns: concurrent, MaxIdleConnsPerHost: concurrent}}
-
-	flag.Parse()
-
-	if _, err := url2.ParseRequestURI(Endpoint); err != nil {
-		fmt.Printf("Invalid Endpoint URL: %s\n", err)
-		flag.PrintDefaults()
-		os.Exit(-1)
+func PrintResults() {
+	for key, value := range results {
+		fmt.Printf("%s: %s\n", key, value)
 	}
-
-	println("USING:", runtime.NumCPU(), "CPUs")
-	println("URL:", Endpoint)
-	println("Total number of requests:", TotalReq)
-	println("Parallel requests:", concurrent)
 }
 
 func LoadTest() {
+	start = time.Now()
+	traces = make([]ReqTraceInfo, TotalReq)
+	client = &http.Client{Transport: &http.Transport{MaxConnsPerHost: concurrent, MaxIdleConns: concurrent, MaxIdleConnsPerHost: concurrent}}
 	reqPool := make(chan *http.Request)
 	respPool := make(chan *http.Response)
-	start = time.Now()
 	go Dispatch(reqPool, Endpoint)
 	go InitializeWorkerPool(reqPool, respPool)
 	go Evaluate(respPool)
@@ -70,7 +51,7 @@ func Evaluate(responseChannel <-chan *http.Response) {
 	for reqProgress < TotalReq {
 		select {
 		case res := <-responseChannel:
-			if res.StatusCode == 200 {
+			if res.StatusCode == http.StatusOK {
 				succeeded++
 			} else {
 				failed++
@@ -78,27 +59,26 @@ func Evaluate(responseChannel <-chan *http.Response) {
 			reqProgress++
 		}
 	}
-	//println("EVALUATED")
-	//took := time.Since(start)
-	//averageTimeSpentPerRequest := took.Nanoseconds() / succeeded
-	//duration, err := time.ParseDuration(fmt.Sprintf("%d", averageTimeSpentPerRequest) + "ns")
-	//
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
-	//fmt.Printf("Average time spent per request: %s\n", duration)
-	//
-	//totalTime, err := time.ParseDuration(fmt.Sprintf("%d", took.Nanoseconds()) + "ns")
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Printf("Reused Connections: %d\n", reusedConnections.Load())
-	//fmt.Printf("Succeeded: %d\n", succeeded)
-	//fmt.Printf("Failed: %d\n", failed)
-	//fmt.Printf("Completed load testing in %s\n", totalTime)
-	//reqPerSecond := totalTime.Seconds() / float64(succeeded)
-	//fmt.Printf("Request/Second: %f\n", reqPerSecond)
+	took := time.Since(start)
+	averageTimeSpentPerRequest := took.Nanoseconds() / succeeded
+	duration, err := time.ParseDuration(fmt.Sprintf("%d", averageTimeSpentPerRequest) + "ns")
+
+	if err != nil {
+		panic(err)
+	}
+
+	totalTime, err := time.ParseDuration(fmt.Sprintf("%d", took.Nanoseconds()) + "ns")
+	if err != nil {
+		panic(err)
+	}
+	results["Average time spent per request"] = fmt.Sprintf("%s", duration)
+	results["Reused Connections"] = fmt.Sprintf("%d", reusedConnections.Load())
+	results["Successful Requests"] = fmt.Sprintf("%d", succeeded)
+	results["Failed Requests"] = fmt.Sprintf("%d", failed)
+	results["Total time taken to complete load testing"] = fmt.Sprintf("%v", totalTime)
+	reqPerSecond := totalTime.Seconds() / float64(succeeded)
+	results["Requests/Second"] = fmt.Sprintf("%f", reqPerSecond)
+
 }
 
 func InitializeWorkerPool(requestChannel <-chan *http.Request, responseChannel chan<- *http.Response) {

@@ -1,10 +1,12 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	url2 "net/url"
 	"os"
 	"runtime"
 	"strings"
@@ -12,19 +14,38 @@ import (
 )
 
 func main() {
-
 	runtime.GOMAXPROCS(runtime.NumCPU())
-
-	go LoadTest()
-	m := model{
-		progress:        progress.New(progress.WithDefaultGradient()),
-		currentRequests: 0,
+	const (
+		defaultNumberOfTotalRequests = 5
+		defaultConcurrentRequests    = 1
+	)
+	flag.StringVar(&Endpoint, "url", "", "Endpoint URL for load testing")
+	flag.IntVar(&TotalReq, "n", defaultNumberOfTotalRequests, "Total number of requests to make")
+	flag.IntVar(&concurrent, "c", defaultConcurrentRequests, "Number of concurrent requests")
+	flag.Parse()
+	if _, err := url2.ParseRequestURI(Endpoint); err != nil {
+		fmt.Printf("Invalid Endpoint URL: %s\n", err)
+		flag.PrintDefaults()
+		os.Exit(-1)
 	}
 
-	if _, err := tea.NewProgram(m).Run(); err != nil {
+	println("USING:", runtime.NumCPU(), "CPUs")
+	println("URL:", Endpoint)
+	println("Total number of requests:", TotalReq)
+	println("Parallel requests:", concurrent)
+
+	go LoadTest()
+
+	m := model{
+		progress: progress.New(progress.WithGradient("#0575e6", "#021b79")),
+	}
+
+	if _, err := tea.NewProgram(m, tea.WithAltScreen()).Run(); err != nil {
 		fmt.Println("Oh no!", err)
 		os.Exit(1)
 	}
+	//PrintResults()
+	LoadResults()
 }
 
 const (
@@ -42,7 +63,7 @@ type model struct {
 }
 
 func (m model) Init() tea.Cmd {
-	return tea.Cmd(checkProgress(&m))
+	return checkProgress(&m)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
