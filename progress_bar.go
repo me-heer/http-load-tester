@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	padding  = 2
+	padding  = 0
 	maxWidth = 80
 )
 
@@ -26,10 +26,10 @@ type model struct {
 
 func ShowProgressBar() {
 	m := model{
-		progress: progress.New(progress.WithGradient("#0575e6", "#021b79")),
+		progress: progress.New(progress.WithDefaultGradient()),
 	}
 
-	if _, err := tea.NewProgram(m, tea.WithAltScreen()).Run(); err != nil {
+	if _, err := tea.NewProgram(m).Run(); err != nil {
 		fmt.Println("Oh no!", err)
 		os.Exit(1)
 	}
@@ -42,6 +42,7 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		os.Exit(0)
 		return m, tea.Quit
 
 	case tea.WindowSizeMsg:
@@ -75,9 +76,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 	pad := strings.Repeat(" ", padding)
-	return "\n" +
-		pad + m.progress.View() + "\n\n" +
-		pad + helpStyle("Press any key to quit")
+	s := "\n" +
+		pad + m.progress.View() + "\n\n"
+	s += "\n" +
+		pad + "Average Time Taken By a Request: " + AverageTimeTakenByEachRequest.String()
+	s += "\n" +
+		pad + "Fastest Request: " + FastestRequest.String()
+	s += "\n" +
+		pad + "Slowest Request: " + SlowestRequest.String()
+	s += "\n" +
+		pad + "Average Time To First Byte: " + AverageTimeToFirstByte.String()
+	s += "\n" +
+		pad + fmt.Sprintf("New Connections Made: %d", NewConnectionsMade.Load())
+	s += "\n" +
+		pad + "Time Spent Connecting To Server: " + TimeSpentMakingConnections.String()
+	s += "\n" + pad + helpStyle("Press any key to quit")
+	return s
 }
 
 func checkProgress(m *model) tea.Cmd {

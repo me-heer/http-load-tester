@@ -50,7 +50,7 @@ func ShowResultsTable() {
 	t.SetStyles(s)
 
 	m := tableModel{t}
-	if _, err := tea.NewProgram(m, tea.WithAltScreen()).Run(); err != nil {
+	if _, err := tea.NewProgram(m).Run(); err != nil {
 		fmt.Println("Error running program:", err)
 		os.Exit(1)
 	}
@@ -72,9 +72,7 @@ func (m tableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q", "ctrl+c":
 			return m, tea.Quit
 		case "enter":
-			return m, tea.Batch(
-				tea.Printf("Let's go to %s!", m.table.SelectedRow()[1]),
-			)
+			return m, nil
 		}
 	}
 	m.table, cmd = m.table.Update(msg)
@@ -82,5 +80,7 @@ func (m tableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m tableModel) View() string {
-	return baseStyle.Render(m.table.View()) + "\n"
+	s := baseStyle.Render(m.table.View()) + "\n"
+	s += "Completed Load Testing In: " + Elapsed.String()
+	return s
 }

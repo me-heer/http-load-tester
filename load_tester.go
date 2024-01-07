@@ -12,17 +12,28 @@ import (
 
 var (
 	// Shared across files
-	TotalReq    int
-	Endpoint    string
-	ReqProgress int
+	TotalReq                      int
+	Endpoint                      string
+	ReqProgress                   int
+	AverageTimeToFirstByte        time.Duration
+	TimeSpentMakingConnections    time.Duration
+	NewConnectionsMade            atomic.Uint64
+	AverageTimeTakenByEachRequest time.Duration
+	FastestRequest                = time.Hour * 12
+	SlowestRequest                time.Duration
+	Elapsed                       time.Duration
 
 	concurrent        int
 	client            *http.Client
 	start             time.Time
 	reusedConnections atomic.Uint64
-	traces            []ReqTraceInfo
 	results           = make(map[string]string)
 )
+
+type Response struct {
+	response  *http.Response
+	traceInfo ReqTraceInfo
+}
 
 type ReqTraceInfo struct {
 	timeToFirstByte time.Duration
@@ -32,10 +43,9 @@ type ReqTraceInfo struct {
 
 func LoadTest() {
 	start = time.Now()
-	traces = make([]ReqTraceInfo, TotalReq)
 	client = &http.Client{Transport: &http.Transport{MaxConnsPerHost: concurrent, MaxIdleConns: concurrent, MaxIdleConnsPerHost: concurrent}}
 	reqPool := make(chan *http.Request)
-	respPool := make(chan *http.Response)
+	respPool := make(chan *Response)
 	go createRequestJobs(reqPool, Endpoint)
 	go initializeWorkerPool(reqPool, respPool)
 	go evaluate(respPool)
@@ -52,49 +62,44 @@ func createRequestJobs(resPool chan *http.Request, url string) {
 	}
 }
 
-func evaluate(responseChannel <-chan *http.Response) {
+func evaluate(responseChannel <-chan *Response) {
 	var succeeded int64
 	var failed int64
 	for ReqProgress < TotalReq {
 		select {
-		case res := <-responseChannel:
-			if res.StatusCode == http.StatusOK {
+		case ar := <-responseChannel:
+			if ar.response.StatusCode == http.StatusOK {
 				succeeded++
 			} else {
 				failed++
 			}
 			ReqProgress++
+			AverageTimeToFirstByte = (AverageTimeToFirstByte + ar.traceInfo.timeToFirstByte) / 2
+			AverageTimeTakenByEachRequest = (AverageTimeTakenByEachRequest + ar.traceInfo.total) / 2
+			if ar.traceInfo.total < FastestRequest {
+				FastestRequest = ar.traceInfo.total
+			}
+			if ar.traceInfo.total > SlowestRequest {
+				SlowestRequest = ar.traceInfo.total
+			}
 		}
 	}
 	took := time.Since(start)
-	averageTimeSpentPerRequest := took.Nanoseconds() / succeeded
-	duration, err := time.ParseDuration(fmt.Sprintf("%d", averageTimeSpentPerRequest) + "ns")
-
-	if err != nil {
-		panic(err)
-	}
-
-	totalTime, err := time.ParseDuration(fmt.Sprintf("%d", took.Nanoseconds()) + "ns")
-	if err != nil {
-		panic(err)
-	}
-	results["Average time spent per request"] = fmt.Sprintf("%s", duration)
+	Elapsed, _ = time.ParseDuration(fmt.Sprintf("%d", took.Nanoseconds()) + "ns")
 	results["Reused Connections"] = fmt.Sprintf("%d", reusedConnections.Load())
 	results["Successful Requests"] = fmt.Sprintf("%d", succeeded)
 	results["Failed Requests"] = fmt.Sprintf("%d", failed)
-	results["Total time taken to complete load testing"] = fmt.Sprintf("%v", totalTime)
-	reqPerSecond := totalTime.Seconds() / float64(succeeded)
+	reqPerSecond := float64(succeeded) / Elapsed.Seconds()
 	results["Requests/Second"] = fmt.Sprintf("%f", reqPerSecond)
-
 }
 
-func initializeWorkerPool(requestChannel <-chan *http.Request, responseChannel chan<- *http.Response) {
+func initializeWorkerPool(requestChannel <-chan *http.Request, responseChannel chan<- *Response) {
 	for i := 0; i < concurrent; i++ {
 		go worker(requestChannel, responseChannel)
 	}
 }
 
-func worker(requestChannel <-chan *http.Request, responseChannel chan<- *http.Response) {
+func worker(requestChannel <-chan *http.Request, responseChannel chan<- *Response) {
 	for req := range requestChannel {
 		var connect, reqStart time.Time
 		var timeToFirstByte, timeToConnect time.Duration
@@ -103,11 +108,14 @@ func worker(requestChannel <-chan *http.Request, responseChannel chan<- *http.Re
 			ConnectStart: func(network, addr string) { connect = time.Now() },
 			ConnectDone: func(network, addr string, err error) {
 				timeToConnect = time.Since(connect)
+				TimeSpentMakingConnections += timeToConnect
 			},
 
 			GotConn: func(connInfo httptrace.GotConnInfo) {
 				if connInfo.Reused {
 					reusedConnections.Add(1)
+				} else {
+					NewConnectionsMade.Add(1)
 				}
 			},
 			GotFirstResponseByte: func() {
@@ -133,12 +141,13 @@ func worker(requestChannel <-chan *http.Request, responseChannel chan<- *http.Re
 			return
 		}
 
-		traces = append(traces, ReqTraceInfo{
+		traceInfo := ReqTraceInfo{
 			timeToFirstByte: timeToFirstByte,
 			timeToConnect:   timeToConnect,
 			total:           totalTime,
-		})
+		}
+		ar := &Response{response: resp, traceInfo: traceInfo}
 
-		responseChannel <- resp
+		responseChannel <- ar
 	}
 }
