@@ -58,7 +58,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Note that you can also use progress.Model.SetPercent to set the
 		// percentage value explicitly, too.
-		result := float64(reqProgress) / float64(TotalReq)
+		result := float64(ReqProgress) / float64(TotalReq)
 		cmd := m.progress.SetPercent(result)
 		return m, tea.Batch(checkProgress(&m), cmd)
 
@@ -81,7 +81,7 @@ func (m model) View() string {
 }
 
 func checkProgress(m *model) tea.Cmd {
-	m.currentRequests = reqProgress
+	m.currentRequests = ReqProgress
 	return tea.Tick(time.Millisecond*500, func(t time.Time) tea.Msg {
 		return tickMsg(t)
 	})

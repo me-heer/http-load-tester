@@ -11,14 +11,16 @@ import (
 )
 
 var (
+	// Shared across files
+	TotalReq    int
+	Endpoint    string
+	ReqProgress int
+
 	concurrent        int
-	TotalReq          int
-	Endpoint          string
 	client            *http.Client
 	start             time.Time
 	reusedConnections atomic.Uint64
 	traces            []ReqTraceInfo
-	reqProgress       int
 	results           = make(map[string]string)
 )
 
@@ -28,27 +30,32 @@ type ReqTraceInfo struct {
 	total           time.Duration
 }
 
-func PrintResults() {
-	for key, value := range results {
-		fmt.Printf("%s: %s\n", key, value)
-	}
-}
-
 func LoadTest() {
 	start = time.Now()
 	traces = make([]ReqTraceInfo, TotalReq)
 	client = &http.Client{Transport: &http.Transport{MaxConnsPerHost: concurrent, MaxIdleConns: concurrent, MaxIdleConnsPerHost: concurrent}}
 	reqPool := make(chan *http.Request)
 	respPool := make(chan *http.Response)
-	go CreateRequestJobs(reqPool, Endpoint)
-	go InitializeWorkerPool(reqPool, respPool)
-	go Evaluate(respPool)
+	go createRequestJobs(reqPool, Endpoint)
+	go initializeWorkerPool(reqPool, respPool)
+	go evaluate(respPool)
 }
 
-func Evaluate(responseChannel <-chan *http.Response) {
+func createRequestJobs(resPool chan *http.Request, url string) {
+	defer close(resPool)
+	for i := 0; i < TotalReq; i++ {
+		r, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			panic(err)
+		}
+		resPool <- r
+	}
+}
+
+func evaluate(responseChannel <-chan *http.Response) {
 	var succeeded int64
 	var failed int64
-	for reqProgress < TotalReq {
+	for ReqProgress < TotalReq {
 		select {
 		case res := <-responseChannel:
 			if res.StatusCode == http.StatusOK {
@@ -56,7 +63,7 @@ func Evaluate(responseChannel <-chan *http.Response) {
 			} else {
 				failed++
 			}
-			reqProgress++
+			ReqProgress++
 		}
 	}
 	took := time.Since(start)
@@ -81,7 +88,7 @@ func Evaluate(responseChannel <-chan *http.Response) {
 
 }
 
-func InitializeWorkerPool(requestChannel <-chan *http.Request, responseChannel chan<- *http.Response) {
+func initializeWorkerPool(requestChannel <-chan *http.Request, responseChannel chan<- *http.Response) {
 	for i := 0; i < concurrent; i++ {
 		go worker(requestChannel, responseChannel)
 	}
@@ -133,16 +140,5 @@ func worker(requestChannel <-chan *http.Request, responseChannel chan<- *http.Re
 		})
 
 		responseChannel <- resp
-	}
-}
-
-func CreateRequestJobs(resPool chan *http.Request, url string) {
-	defer close(resPool)
-	for i := 0; i < TotalReq; i++ {
-		r, err := http.NewRequest("GET", url, nil)
-		if err != nil {
-			panic(err)
-		}
-		resPool <- r
 	}
 }
