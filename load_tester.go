@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	// Shared across files
+	// Accessed by other files to show results
 	TotalReq                      int
 	Endpoint                      string
 	ReqProgress                   int
@@ -47,8 +47,8 @@ func LoadTest() {
 	reqPool := make(chan *http.Request)
 	respPool := make(chan *Response)
 	go createRequestJobs(reqPool, Endpoint)
-	go initializeWorkerPool(reqPool, respPool)
-	go evaluate(respPool)
+	go startRequestWorkers(reqPool, respPool)
+	go evaluateResponses(respPool)
 }
 
 func createRequestJobs(resPool chan *http.Request, url string) {
@@ -62,7 +62,7 @@ func createRequestJobs(resPool chan *http.Request, url string) {
 	}
 }
 
-func evaluate(responseChannel <-chan *Response) {
+func evaluateResponses(responseChannel <-chan *Response) {
 	var succeeded int64
 	var failed int64
 	for ReqProgress < TotalReq {
@@ -93,7 +93,7 @@ func evaluate(responseChannel <-chan *Response) {
 	results["Requests/Second"] = fmt.Sprintf("%f", reqPerSecond)
 }
 
-func initializeWorkerPool(requestChannel <-chan *http.Request, responseChannel chan<- *Response) {
+func startRequestWorkers(requestChannel <-chan *http.Request, responseChannel chan<- *Response) {
 	for i := 0; i < concurrent; i++ {
 		go worker(requestChannel, responseChannel)
 	}

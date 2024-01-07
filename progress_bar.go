@@ -79,17 +79,17 @@ func (m model) View() string {
 	s := "\n" +
 		pad + m.progress.View() + "\n\n"
 	s += "\n" +
-		pad + "Average Time Taken By a Request: " + AverageTimeTakenByEachRequest.String()
+		pad + helpStyle("Average Time Taken By a Request: "+AverageTimeTakenByEachRequest.String())
 	s += "\n" +
-		pad + "Fastest Request: " + FastestRequest.String()
+		pad + helpStyle("Fastest Request: "+FastestRequest.String())
 	s += "\n" +
-		pad + "Slowest Request: " + SlowestRequest.String()
+		pad + helpStyle("Slowest Request: "+SlowestRequest.String())
 	s += "\n" +
-		pad + "Average Time To First Byte: " + AverageTimeToFirstByte.String()
+		pad + helpStyle("Average Time To First Byte: "+AverageTimeToFirstByte.String())
 	s += "\n" +
-		pad + fmt.Sprintf("New Connections Made: %d", NewConnectionsMade.Load())
+		pad + helpStyle(fmt.Sprintf("New Connections Made: %d", NewConnectionsMade.Load()))
 	s += "\n" +
-		pad + "Time Spent Connecting To Server: " + TimeSpentMakingConnections.String()
+		pad + helpStyle("Time Spent Connecting To Server: "+TimeSpentMakingConnections.String())
 	s += "\n" + pad + helpStyle("Press any key to quit")
 	return s
 }
