@@ -114,7 +114,10 @@ func worker(requestChannel <-chan *http.Request, responseChannel chan<- *http.Re
 			println(err.Error())
 			os.Exit(2)
 		}
-		io.ReadAll(resp.Body)
+		_, err = io.ReadAll(resp.Body)
+		if err != nil {
+			return
+		}
 
 		totalTime := time.Since(reqStart)
 
