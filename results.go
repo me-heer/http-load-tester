@@ -46,7 +46,7 @@ func (m tableModel) View() string {
 	return baseStyle.Render(m.table.View()) + "\n"
 }
 
-func LoadResults() {
+func ShowResultsTable() {
 	columns := []table.Column{
 		{Title: "Key", Width: 30},
 		{Title: "Value", Width: 30},

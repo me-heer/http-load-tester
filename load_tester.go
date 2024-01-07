@@ -40,7 +40,7 @@ func LoadTest() {
 	client = &http.Client{Transport: &http.Transport{MaxConnsPerHost: concurrent, MaxIdleConns: concurrent, MaxIdleConnsPerHost: concurrent}}
 	reqPool := make(chan *http.Request)
 	respPool := make(chan *http.Response)
-	go Dispatch(reqPool, Endpoint)
+	go CreateRequestJobs(reqPool, Endpoint)
 	go InitializeWorkerPool(reqPool, respPool)
 	go Evaluate(respPool)
 }
@@ -133,7 +133,7 @@ func worker(requestChannel <-chan *http.Request, responseChannel chan<- *http.Re
 	}
 }
 
-func Dispatch(resPool chan *http.Request, url string) {
+func CreateRequestJobs(resPool chan *http.Request, url string) {
 	defer close(resPool)
 	for i := 0; i < TotalReq; i++ {
 		r, err := http.NewRequest("GET", url, nil)
