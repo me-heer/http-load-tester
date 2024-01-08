@@ -1,7 +1,7 @@
 
 # HTTP Load Tester
 
-- An HTTP Load Tester written in Go which supports concurrent requests, and outputs important metrics
+- An HTTP Load Tester written in Go that supports concurrent requests, and outputs important metrics
 - Check if your system handles concurrent load properly, or if your rate limiting works correctly
 
 ![demo](demo.gif)
