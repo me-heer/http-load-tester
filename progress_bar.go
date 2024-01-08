@@ -77,7 +77,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) View() string {
 	pad := strings.Repeat(" ", padding)
 	s := "\n" +
-		pad + m.progress.View() + "\n\n"
+		pad + m.progress.View() + "\n"
 	s += "\n" +
 		pad + helpStyle("Average Time Taken By a Request: "+AverageTimeTakenByEachRequest.String())
 	s += "\n" +

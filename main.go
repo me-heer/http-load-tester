@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/fatih/color"
 	url2 "net/url"
 	"os"
 	"runtime"
@@ -16,7 +17,7 @@ func main() {
 	)
 	flag.StringVar(&Endpoint, "url", "", "Endpoint URL for load testing")
 	flag.IntVar(&TotalReq, "n", defaultNumberOfTotalRequests, "Total number of requests to make")
-	flag.IntVar(&concurrent, "c", defaultConcurrentRequests, "Number of concurrent requests")
+	flag.IntVar(&Concurrent, "c", defaultConcurrentRequests, "Number of Concurrent requests")
 	flag.Parse()
 	if _, err := url2.ParseRequestURI(Endpoint); err != nil {
 		fmt.Printf("Invalid Endpoint URL: %s\n", err)
@@ -27,9 +28,13 @@ func main() {
 	println("USING:", runtime.NumCPU(), "CPUs")
 	println("URL:", Endpoint)
 	println("Total number of requests:", TotalReq)
-	println("Parallel requests:", concurrent)
+	println("Parallel requests:", Concurrent)
 
 	go LoadTest()
+
 	ShowProgressBar()
-	ShowResultsTable()
+
+	color.Green("Succeeded Requests: %s", results[succeeded])
+	color.Red("Failed Requests: %s", results[failed])
+	color.Cyan("Requests/Second: %s", results[reqPerSecond])
 }
