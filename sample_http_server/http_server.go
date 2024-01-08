@@ -16,6 +16,7 @@ func blazinglyFastHandler(w http.ResponseWriter, r *http.Request) {
 func main() {
 	http.HandleFunc("/", blazinglyFastHandler)
 	err := http.ListenAndServe("127.0.0.1:12345", nil)
+	println("Listening at 127.0.0.1:12345")
 	if err != nil {
 		println(err.Error())
 		log.Fatal("I couldn't serve")
