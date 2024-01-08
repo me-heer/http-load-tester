@@ -131,6 +131,7 @@ func worker(requestChannel <-chan *http.Request, responseChannel chan<- *Respons
 		resp, err := client.Do(req)
 		if err != nil {
 			println(err.Error())
+			printResults()
 			os.Exit(2)
 		}
 		_, err = io.ReadAll(resp.Body)
