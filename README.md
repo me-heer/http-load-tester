@@ -41,5 +41,5 @@ $ ./http-load-tester -n 1000 -c 100 -url=http://localhost:12345
 - Idea inspired by: https://codingchallenges.fyi/challenges/challenge-load-tester
 
 ### Motivation
-- I wanted to experiment with Golang more
+- I wanted to experiment with Golang more and see how [Bubble Tea](https://github.com/charmbracelet/bubbletea) works
 - `"The first step in acquiring any new skill is not being able to do your own thing but being able to reproduce what other people have done before you. This is the quickest way to mastering a skill."` - Joe Armstrong, Creator of Erlang
