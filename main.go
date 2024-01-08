@@ -33,7 +33,10 @@ func main() {
 	go LoadTest()
 
 	ShowProgressBar()
+	printResults()
+}
 
+func printResults() {
 	color.Green("Succeeded Requests: %s", results[succeeded])
 	color.Red("Failed Requests: %s", results[failed])
 	color.Cyan("Requests/Second: %s", results[reqPerSecond])
