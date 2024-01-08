@@ -23,6 +23,14 @@ $ go build .
 $ ./http-load-tester -n 1000 -c 100 -url=http://localhost:12345
 ```
 
+### Installation
+```bash
+$ git clone https://github.com/me-heer/http-load-tester.git
+$ cd http-load-tester
+$ go build .
+$ ./http-load-tester -n 1000 -c 100 -url=http://localhost:12345
+```
+
 ### Sample HTTP Server
 - If you need, `sample_http_server/` has a test http server which you can use to observe the behavior of HTTP Load Tester.
 - Start the sample HTTP Server by: `go run sample_http_server/http_server.go`
