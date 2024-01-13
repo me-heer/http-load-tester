@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptrace"
 	"os"
+	"strings"
 	"sync/atomic"
 	"time"
 )
@@ -15,6 +16,8 @@ var (
 	TotalReq   int
 	Endpoint   string
 	Concurrent int
+	HttpMethod string
+	Body       string
 
 	// Accessed by other files to show results
 	ReqProgress                   int
@@ -33,9 +36,10 @@ var (
 )
 
 const (
-	failed       = "failed"
-	succeeded    = "succeeded"
-	reqPerSecond = "reqPerSecond"
+	failed        = "failed"
+	succeeded     = "succeeded"
+	reqPerSecond  = "reqPerSecond"
+	totalDuration = "totalDuration"
 )
 
 type Response struct {
@@ -62,7 +66,8 @@ func LoadTest() {
 func createRequestJobs(reqPool chan<- *http.Request, url string, numberOfRequests int) {
 	defer close(reqPool)
 	for i := 0; i < numberOfRequests; i++ {
-		r, err := http.NewRequest(http.MethodGet, url, nil)
+		r, err := http.NewRequest(HttpMethod, url, strings.NewReader(Body))
+		r.Header.Set("Content-Type", "application/json")
 		if err != nil {
 			panic(err)
 		}
@@ -96,6 +101,7 @@ func evaluateResponses(responseChannel <-chan *Response) {
 	results[failed] = fmt.Sprintf("%d", failedCount)
 	requestsPerSecond := float64(succeededCount) / Elapsed.Seconds()
 	results[reqPerSecond] = fmt.Sprintf("%f", requestsPerSecond)
+	results[totalDuration] = Elapsed.String()
 }
 
 func startRequestWorkers(requestChannel <-chan *http.Request, responseChannel chan<- *Response, maxConcurrentRequests int) {
